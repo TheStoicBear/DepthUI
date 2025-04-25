@@ -1,0 +1,119 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Floating Holograms</title>
+    <style>
+        /* Base reset and transparency for a dark theme */
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        /* Container holding all hologram elements */
+        #holograms-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        /* Individual hologram styling using CSS variables from config.js */
+        .hologram {
+            position: absolute;
+            transform: translate(-50%, -50%) perspective(800px) rotateX(15deg);
+            background-color: var(--holo-bg-color, rgba(20, 20, 20, 0.9));
+            border: var(--holo-border-width, 2px) solid var(--holo-border-color, #FF4500);
+            border-radius: var(--holo-border-radius, 10px);
+            padding: var(--holo-padding, 20px);
+            /* Use explicit width to control horizontal size */
+            width: var(--holo-width, 600px);
+            /* Optional max-width fallback */
+            max-width: var(--holo-max-width, 800px);
+            opacity: 0;
+            transition: opacity var(--holo-transition-duration, 0.5s) ease-in-out;
+            word-wrap: break-word;
+            line-height: var(--holo-line-height, 1.4);
+        }
+        .hologram.active {
+            opacity: 1;
+        }
+        .hologram h2 {
+            margin-top: 0;
+            font-size: var(--holo-heading-size, 24px);
+            color: var(--holo-heading-color, #FF4500);
+        }
+        .hologram p {
+            margin: 8px 0;
+            font-size: var(--holo-text-size, 18px);
+            color: var(--holo-text-color, #F0F0F0);
+            text-shadow: 0 0 5px var(--holo-text-shadow-color, #FF4500);
+        }
+    </style>
+</head>
+<body>
+    <div id="holograms-container"></div>
+
+    <!-- Load configuration for CSS variables -->
+    <script src="config.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+        integrity="sha256-4+XzXVhsDmqanXGHaHvgh1gMQKX40OUvDEBTu8JcmNs="
+        crossorigin="anonymous"></script>
+    <script>
+        // Apply CSS variables from config
+        const root = document.documentElement;
+        if (window.HologramConfig && HologramConfig.cssVars) {
+            Object.entries(HologramConfig.cssVars).forEach(([key, value]) => {
+                root.style.setProperty(key, value);
+            });
+        }
+
+        const container = document.getElementById('holograms-container');
+
+        window.addEventListener('message', function(event) {
+            const data = event.data;
+            if (data.action === 'update') {
+                container.innerHTML = '';
+                if (data.holograms && data.holograms.length > 0) {
+                    data.holograms.forEach(holo => {
+                        const div = document.createElement('div');
+                        div.classList.add('hologram', 'active');
+                        div.style.left = `${holo.x * window.innerWidth}px`;
+                        div.style.top = `${holo.y * window.innerHeight}px`;
+                        if (holo.textLines && holo.textLines.length) {
+                            let html = `<h2>${holo.textLines[0]}</h2>`;
+                            for (let i = 1; i < holo.textLines.length; i++) {
+                                html += `<p>${holo.textLines[i]}</p>`;
+                            }
+                            div.innerHTML = html;
+                        }
+                        container.appendChild(div);
+                    });
+                }
+            }
+        });
+
+        // NUI message handlers for copying coords (unchanged)
+        window.addEventListener("message", handleNuiMessages);
+        function handleNuiMessages(event) {
+            const type = event.data.type;
+            if (type === 'copyCoords') {
+                copyCoords(event.data.x, event.data.y, event.data.z);
+            } else if (type === 'copyCoordsAndHeading') {
+                copyCoords(event.data.x, event.data.y, event.data.z, event.data.h);
+            }
+        }
+        function copyCoords(x, y, z, h) {
+            const vals = [x, y, z, h].filter(v => v !== undefined)
+                .map(num => Number(num.toFixed(4))).join(', ');
+            const str = `{ ${vals} }`;
+            const ta = document.createElement('textarea');
+            ta.value = str;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+    </script>
+</body>
+</html>
